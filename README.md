@@ -241,3 +241,41 @@ queue = Snerdmq::SnerdQueue.new(storage_path: "/var/data/snerd") # per-server st
 A shared network drive (AWS EFS or NFS) is still a good home for that storage when a single instance needs durable state — e.g. a container that restarts but must keep its queue. Native OS file locking (`flock`) keeps writes safe — no Redis required.
 
 *Built with ❤️ for John Wick tier engineering.*
+
+
+## Architecture Best Practices
+
+When building production applications with SnerdMQ, it is recommended to initialize the queue as a Singleton, isolate your domain workers into separate files/functions, use Dead Letter Queues (DLQ) for failed tasks via `RegisterMaxRetryHandler`, and ensure manual graceful shutdown. The embedded Dashboard UI can also be easily served from the same instance.
+
+```ruby
+require 'snerdmq'
+
+queue = SnerdQueue.new(storage_path: "./.snerdata")
+
+def init_email_workers(queue)
+  queue.register_handler('send_email') do |data|
+    puts "Sending email to #{data['email']}..."
+  end
+
+  queue.register_max_retry_handler('send_email') do |data|
+    puts "Email to #{data['email']} failed permanently. Dead letter processing..."
+  end
+end
+
+def init_image_workers(queue)
+  queue.register_handler('process_image') do |data|
+    puts "Processing image #{data['imageId']}..."
+  end
+end
+
+init_email_workers(queue)
+init_image_workers(queue)
+
+queue.start_dashboard(8080)
+
+# Trap signals for graceful shutdown
+trap('INT') { queue.shutdown; exit }
+trap('TERM') { queue.shutdown; exit }
+
+queue.start_listening
+```
