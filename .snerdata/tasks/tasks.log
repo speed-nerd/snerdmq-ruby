@@ -1,2 +1,0 @@
-{"taskId":"ruby-job-1","retryCount":0,"maxRetries":3,"retryAfterHours":0.0,"retryAfterTime":"2026-08-14T09:43:50.902732Z","taskData":"{\"user_id\":\"ruby_master\",\"message\":\"matz\"}","taskType":"test_ruby_job"}
-{"taskId":"ruby-job-1","retryCount":0,"maxRetries":3,"retryAfterHours":0.0,"retryAfterTime":"2026-08-16T10:42:24.239760Z","taskData":"{\"user_id\":\"ruby_master\",\"message\":\"matz\"}","taskType":"test_ruby_job","executeAt":"2026-08-16T10:42:24.239760Z"}

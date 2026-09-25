@@ -5,9 +5,11 @@ require 'time'
 
 module Snerdmq
   class SnerdQueue
-    def initialize(binary_path: nil, storage_path: nil)
+    def initialize(binary_path: nil, storage_path: nil, max_local_shards: nil, max_workers: nil)
       @binary_path = binary_path
       @storage_path = storage_path
+      @max_local_shards = max_local_shards
+      @max_workers = max_workers
       
       if @binary_path.nil?
         ext = RbConfig::CONFIG['host_os'].match?(/mswin|msys|mingw|cygwin|bccwin|wince|emc/) ? '.exe' : ''
@@ -56,8 +58,12 @@ module Snerdmq
       args = []
       args << @storage_path if @storage_path
 
+      env = {}
+      env["SNERD_MAX_SHARDS"] = @max_local_shards.to_s if @max_local_shards
+      env["SNERD_MAX_WORKERS"] = @max_workers.to_s if @max_workers
+
       # Open a bidirectional pipe to the Rust daemon
-      @io = IO.popen([@binary_path] + args, "r+")
+      @io = IO.popen(env, [@binary_path] + args, "r+")
 
       # Re-register all existing handlers
       @handlers_mutex.synchronize do
@@ -74,7 +80,7 @@ module Snerdmq
       end
     end
 
-    def enqueue(task_id:, task_type:, data:, max_retries: 3, retry_after_hours: 0.0, rate_limit_group: nil, max_per_minute: nil, auto_dedupe: false, urgency_score: nil, execute_at: nil, cron: nil, webhook_url: nil, max_execution_seconds: nil, trigger_after_ids: nil)
+    def enqueue(task_id:, task_type:, data:, max_retries: 3, retry_after_hours: 0.0, rate_limit_group: nil, max_per_minute: nil, auto_dedupe: false, urgency_score: nil, execute_at: nil, cron: nil, webhook_url: nil, max_execution_seconds: nil, trigger_after_ids: nil, pool: nil)
       raise "[Snerd] Cannot enqueue task: Queue is not running. Call start_listening first." if @io.nil? || @shutting_down
       
       payload = {
@@ -98,6 +104,7 @@ module Snerdmq
       payload[:webhook_url] = webhook_url if webhook_url
       payload[:max_execution_seconds] = max_execution_seconds if max_execution_seconds
       payload[:trigger_after_ids] = trigger_after_ids if trigger_after_ids
+      payload[:pool] = pool if pool
 
       cond = ConditionVariable.new
       result = nil
