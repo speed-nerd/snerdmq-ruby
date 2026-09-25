@@ -74,7 +74,7 @@ module Snerdmq
       end
     end
 
-    def enqueue(task_id:, task_type:, data:, max_retries: 3, retry_after_hours: 0.0, rate_limit_group: nil, max_per_minute: nil, auto_dedupe: false, urgency_score: nil, execute_at: nil, cron: nil, webhook_url: nil, max_execution_seconds: nil)
+    def enqueue(task_id:, task_type:, data:, max_retries: 3, retry_after_hours: 0.0, rate_limit_group: nil, max_per_minute: nil, auto_dedupe: false, urgency_score: nil, execute_at: nil, cron: nil, webhook_url: nil, max_execution_seconds: nil, trigger_after_ids: nil)
       raise "[Snerd] Cannot enqueue task: Queue is not running. Call start_listening first." if @io.nil? || @shutting_down
       
       payload = {
@@ -97,6 +97,7 @@ module Snerdmq
       payload[:cron] = cron if cron
       payload[:webhook_url] = webhook_url if webhook_url
       payload[:max_execution_seconds] = max_execution_seconds if max_execution_seconds
+      payload[:trigger_after_ids] = trigger_after_ids if trigger_after_ids
 
       cond = ConditionVariable.new
       result = nil
