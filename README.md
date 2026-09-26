@@ -291,6 +291,39 @@ queue.enqueue(
 ```
 
 
+### 🕒 Cron & Scheduled Jobs
+```ruby
+# Run every day at 08:00
+queue.enqueue(
+  task_id: 'daily-digest',
+  task_type: 'send_email',
+  data: { template: 'daily' },
+  cron: '0 8 * * *'
+)
+```
+
+### 🛑 Hard Timeouts
+```ruby
+# Forcefully kill if running > 5 mins
+queue.enqueue(
+  task_id: 'risky-task',
+  task_type: 'process_data',
+  data: {},
+  max_execution_seconds: 300
+)
+```
+
+### 🌐 Webhook Callbacks
+```ruby
+# Execute via HTTP instead of local handlers
+queue.enqueue(
+  task_id: 'serverless-task',
+  task_type: 'resize_image',
+  data: { img: 'cat.jpg' },
+  webhook_url: 'https://api.example.com/webhooks/snerdmq'
+)
+```
+
 *Built with ❤️ for John Wick tier engineering.*
 
 
