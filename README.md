@@ -1,6 +1,6 @@
 <div align="center">
   <img src="./assets/Designer-9.png" height="120" alt="SnerdMQ Ruby Logo" />
-  <h1>💎 SnerdMQ Ruby SDK v0.3.5</h1>
+  <h1>💎 SnerdMQ Ruby SDK v0.4.0</h1>
   <p>A zero-config, C-speed background job queue for Ruby. Ditch Redis and Sidekiq for lightweight, persistent background jobs.</p>
 
   [![Gem Version](https://badge.fury.io/rb/snerdmq.svg)](https://badge.fury.io/rb/snerdmq)
@@ -9,7 +9,9 @@
 
 This is the official Ruby SDK wrapper for **SnerdMQ**. It handles all JSON-RPC communication and `IO.popen` orchestration so you can write lightning-fast background jobs without managing any external databases like Redis or Postgres.
 
-## ✨ v0.3.5 AI Features
+## ✨ v0.4.0 AI Features
+- **Worker Pools**: Prevent slow generative AI tasks from starving fast DB tasks by dedicating workers to specific pools (e.g. `"urgent"`).
+- **Sharded Queues**: Distribute load across multiple queue nodes safely using file-backed lock sharding (`max_local_shards`).
 - **Smart API Rate-Limiting**: Natively tracks `rate_limit_group` execution velocity to prevent 429 "Too Many Requests" API errors.
 - **Payload-Hashing Deduplication**: Automatically computes cryptographic hashes to drop duplicate tasks instantly.
 - **Dynamic Float Prioritization**: A native Binary Max-Heap bypasses standard FIFO rules for high urgency tasks.
@@ -19,7 +21,7 @@ This is the official Ruby SDK wrapper for **SnerdMQ**. It handles all JSON-RPC c
 - **Zero Rust Required**: Our gem installation script automatically downloads the pre-compiled C-speed Rust binary for your OS.
 - **Thread Safe**: Uses native Ruby `Thread`s and `Mutex` locks to orchestrate I/O without blocking your main event loop.
 
-### ⚙️ Advanced Task Configuration (v0.3.5)
+### ⚙️ Advanced Task Configuration (v0.4.0)
 To power complex AI workflows, tasks can now be configured with advanced orchestration parameters:
 
 * **`auto_dedupe` (`true/false`)**: If set to `true`, the daemon computes a cryptographic hash of the `task_type` and `data`. If an identical payload is currently sitting in the queue pending execution, this new task is silently dropped. Excellent for preventing duplicate generative AI requests from trigger-happy users!
@@ -32,6 +34,7 @@ To power complex AI workflows, tasks can now be configured with advanced orchest
 * **`webhook_url` (`String`)**: By providing a webhook URL, SnerdMQ will completely bypass your local Ruby blocks and dispatch the task payload via an HTTP POST request directly to the specified URL.
 * **`max_execution_seconds` (`Integer`)**: Optional hard timeout in seconds. If execution takes longer, it's marked as failed.
 * **`trigger_after_ids` (`Array` of `String`)**: A list of parent task IDs that must complete successfully before this task is allowed to dispatch. Enables complex DAG workflows natively within the queue.
+* **`pool` (`String`)**: Dedicate this task to a specific worker pool (e.g. `"urgent"`).
 
 ### Note on Hard Timeouts (`max_execution_seconds`)
 When `max_execution_seconds` is provided, the Ruby SDK wraps the execution of your handler in a `Timeout.timeout` block. If the task takes longer than the timeout, a `Timeout::Error` is raised and the execution will be marked as failed. The background Rust daemon also enforces this timeout at the IPC level.
@@ -109,7 +112,9 @@ queue.enqueue(
   auto_dedupe: true,           # Drop identical pending payloads
   urgency_score: 0.99,         # Float to the front of the queue
   webhook_url: "https://api.example.com/webhook", # Execute via HTTP instead of local blocks
-  max_execution_seconds: 300   # Hard timeout
+  max_execution_seconds: 300,  # Hard timeout
+  trigger_after_ids: ["parent-123"], # Wait for parent tasks to complete
+  pool: "urgent"               # Dedicate to a specific worker pool
 )
 
 # Keep main thread alive
@@ -213,7 +218,11 @@ second = Snerdmq::SnerdQueue.new  # ❌ daemon refuses to start:
 # "Another daemon is already running on storage '.snerdata'"
 ```
 
-This applies across processes too — with **Puma/Unicorn clustered workers, every worker is a separate process** that spawns its own daemon, so each worker needs its own `storage_path` (or run a single dedicated worker process for jobs).
+This applies across processes too — with **Puma/Unicorn clustered workers, every worker is a separate process**. To safely scale on the same disk without double-executing jobs, you must initialize the daemon with `max_local_shards`:
+```ruby
+# SnerdMQ will partition the .snerdata locks across shards
+queue = Snerdmq::SnerdQueue.new(max_local_shards: 4, max_workers: { "urgent" => 5 })
+```
 
 ### 🔀 Need multiple queues? Give each one its own storage
 
