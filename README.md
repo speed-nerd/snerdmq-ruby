@@ -310,7 +310,7 @@ queue.enqueue(task_id: 'risky-task', task_type: 'process_data', data: {}, max_ex
 queue.enqueue(task_id: 'serverless-task', task_type: 'resize_image', data: { img: 'cat.jpg' }, webhook_url: 'https://api.example.com/webhooks/snerdmq')
 ```
 
-*Built with ❤️ for John Wick tier engineering.*
+
 
 
 ## Architecture Best Practices
@@ -349,3 +349,5 @@ trap('TERM') { queue.shutdown; exit }
 
 queue.start_listening
 ```
+
+*Built with ❤️ for John Wick tier engineering.*
